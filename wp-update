@@ -1,0 +1,12 @@
+#!/bin/bash
+echo 'Downloading latest Wordpress…'
+wget -q --show-progress http://wordpress.org/latest.zip
+echo 'Unpacking files…'
+unzip -q ./latest.zip
+echo 'Updating files…'
+cp -R ./wordpress/* ./
+echo 'Cleaning up…'
+rm -rf ./wordpress ./latest.zip
+# uncomment line below to remove default templates
+# rm -rf ./wp-content/themes/twenty*
+echo 'Done.'
