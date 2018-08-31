@@ -14,7 +14,7 @@ Execute script:
 `$ ./wp-update`
 
 # wp-urlupdate
-Simple bash script that will create SQL query to replace website URL in Wordpress database
+Simple bash script that will create SQL query to replace website URL in Wordpress database.
 
 Download script:
 
