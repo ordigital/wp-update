@@ -1,5 +1,5 @@
 # wp-update
-Simple bash script that will update Wordpress in current directory.
+Simple bash script that can update Wordpress in current directory, generate SQL query to update Wordpress URL, generate new salt key, generate .htaccess and .htpasswd files to protect wp-admin directory.
 
 Download script:
 
@@ -12,18 +12,3 @@ Add executable flag:
 Execute script:
 
 `$ ./wp-update`
-
-# wp-urlupdate
-Simple bash script that will create SQL query to replace website URL in Wordpress database.
-
-Download script:
-
-`$ wget https://raw.githubusercontent.com/ordigital/wp-update/master/wp-urlupdate`
-
-Add executable flag:
-
-`$ chmod +x ./wp-urlupdate`
-
-Execute script:
-
-`$ ./wp-urlpdate`
