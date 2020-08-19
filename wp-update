@@ -4,26 +4,38 @@ start() {
 clear
 echo -e "\e[92mWP-UPDATE by ordigital.pl"
 echo -e "\e[94m-------------------------------------------"
+echo "0. Fix file permissions"
 echo "1. Update to latest Wordpress version"
 echo "2. Create SQL query to update Worpress URL"
-echo "3. Generate new salt key"
-echo "4. Generate .htaccess and .htpasswd for wp-admin"
+echo "3. Update Wordpress URL in SQLite database"
+echo "4. Generate new salt key"
+echo "5. Generate .htaccess and .htpasswd for wp-admin"
+echo "6. Remove type from script tags (W3C compliance)"
 echo "X. Quit"
 echo ""
-read -p "Select action: " action 
+read -p "Select action: " action
 
 clear
 case "$action" in
+"0") fix_perm ;;
 "1") update_wp ;;
 "2") update_sql ;;
-"3") generate_salt ;;
-"4") gen_htpasswd ;;
+"3") update_sqlite ;;
+"4") generate_salt ;;
+"5") gen_htpasswd ;;
+"6") replace_tags ;;
 "X") exit ;;
 "x") exit ;;
 *) start
 esac
 finished
 start
+}
+
+fix_perm() {
+chown -R www-data:www-data ./
+find . -type d -exec chmod 755 {} \; 
+find . -type f -exec chmod 644 {} \;
 }
 
 update_wp() {
@@ -33,25 +45,50 @@ echo 'Downloading latest Wordpress…'
 wget -q --show-progress http://wordpress.org/latest.zip
 echo 'Unpacking files…'
 unzip -q ./latest.zip
+rm -R ./wordpress/wp-content/themes
 echo 'Updating files…'
 cp -R ./wordpress/* ./
 echo 'Cleaning up…'
 rm -rf ./wordpress ./latest.zip
-echo 'Done.' 
+echo 'Done.'
 }
+
+update_sqlite() {
+
+oldaddress=$(sqlite3 ./wp-content/database/.ht.sqlite "SELECT option_value FROM wp_options WHERE option_name='siteurl';")
+
+echo -e "\e[92mUpdate Wordpress URL in SQLite"
+echo -e "\e[94m-------------------------------------------"
+read -p "Old website address: " -e -i $oldaddress oldaddress
+read -p "New website address: " newaddress
+
+sqlite3 wp-content/database/.ht.sqlite "UPDATE wp_options SET option_value = replace(option_value, '$oldaddress', '$newaddress') WHERE option_name = 'home' OR option_name = 'siteurl'; \
+         UPDATE wp_posts SET guid = replace(guid, '$oldaddress','$newaddress'); \
+         UPDATE wp_posts SET post_content = replace(post_content, '$oldaddress', '$newaddress'); \
+         UPDATE wp_postmeta SET meta_value = replace(meta_value,'$oldaddress','$newaddress'); \
+	 UPDATE wp_options SET option_value = replace(option_value,'$oldaddress','$newaddress');"
+
+#newaddress=$(echo "$newaddress" | sed 's/\//\\\//g')
+#sed -i "s/\('url'\s\+=>\s\+'\)[^']*'/\1\\$newaddress'/" ./wp-content/themes/ordipress/functions.php
+
+}
+
 
 update_sql() {
 echo -e "\e[92mCreate SQL query to update Wordpress URL"
 echo -e "\e[94m-------------------------------------------"
 read -p "Old website address: " -e -i "localhost/" oldaddress
 read -p "New website address: " newaddress
+
 echo ""
 echo -e "\e[92mSQL query:"
 echo -e "\e[94m--------------------------------------"
 echo -e "\e[37mUPDATE wp_options SET option_value = replace(option_value, '$oldaddress', '$newaddress') WHERE option_name = 'home' OR option_name = 'siteurl';"
 echo "UPDATE wp_posts SET guid = replace(guid, '$oldaddress','$newaddress');"
 echo "UPDATE wp_posts SET post_content = replace(post_content, '$oldaddress', '$newaddress');"
-echo "UPDATE wp_postmeta SET meta_value = replace(meta_value,'$oldaddress','$newaddress');" 
+echo "UPDATE wp_postmeta SET meta_value = replace(meta_value,'$oldaddress','$newaddress');"
+echo "UPDATE wp_options SET option_value = replace(option_value,'$oldaddress','$newaddress');"
+
 }
 
 generate_salt() {
@@ -59,6 +96,21 @@ echo -e "\e[92mCreate SQL query to update Wordpress URL"
 echo -e "\e[94m-------------------------------------------"
 salt="$(curl -s https://api.wordpress.org/secret-key/1.1/salt/)"
 echo -e "\e[37m$salt"
+read -p "Update wp-config.php? " updateconfig
+if [ "$updateconfig" = "y" ]
+then
+    echo -e "<?php\n\
+define('WP_DEBUG', false);\n\
+define('DB_TYPE', 'sqlite');\n\
+define('DB_COLLATE', '');\n\
+$salt\n\
+define('WP_DEFAULT_THEME','ordipress');\n\
+\$table_prefix  = 'wp_';\n\
+if (!defined('ABSPATH'))\n\
+define('ABSPATH', dirname(__FILE__) . '/');\n\
+require_once(ABSPATH . 'wp-settings.php');\n\
+define('FS_METHOD','direct');\n" > ./wp-config.php
+fi
 }
 
 gen_htpasswd() {
@@ -74,11 +126,17 @@ AuthUserFile $wpadmin/wp-admin/.htpasswd
 Require valid-user" > wp-admin/.htaccess
 }
 
+replace_tags() {
+echo "Fixing tags in files..."
+find *.js -type f -name '*.js' -exec sed -i -e 's/[a-z]\.type="text\/javascript",//g' {} +
+find ./ -type f \( -name "*.js" -o -name "*.php" \) -exec sed -i -e 's/type=["'\'']text\/javascript["'\'']//g' {} +
+}
+
 finished() {
 echo ""
 echo -e "\e[94mPress any key to quit."
 read -n 1 -s -r
-echo -e "\e[97m" 
+echo -e "\e[97m"
 }
 
 start
