@@ -134,7 +134,7 @@ Require valid-user" > wp-admin/.htaccess
 replace_tags() {
 echo -e "\e[92mFix tags in files"
 echo -e "\e[94m-------------------------------------------"
-find *.js -type f -name '*.js' -exec sed -i -e 's/[a-z]\.type="text\/javascript",//g' {} +
+find ./ -type f -name "*.js" -exec sed -i -e 's/[a-z]\.type="text\/javascript",//g' {} +
 find ./ -type f \( -name "*.js" -o -name "*.php" \) -exec sed -i -e 's/type=["'\'']text\/javascript["'\'']//g' {} +
 }
 
