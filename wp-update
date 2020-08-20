@@ -10,7 +10,9 @@ echo "2. Create SQL query to update Worpress URL"
 echo "3. Update Wordpress URL in SQLite database"
 echo "4. Generate new salt key"
 echo "5. Generate .htaccess and .htpasswd for wp-admin"
-echo "6. Remove type from script tags (W3C compliance)"
+echo "6. Remove invalid HTML tags (W3C compliance)"
+echo "7. Download SQLite plugin to wp-content"
+echo "8. Set wp-config.php to use SQLite"
 echo "X. Quit"
 echo ""
 read -p "Select action: " action
@@ -24,6 +26,8 @@ case "$action" in
 "4") generate_salt ;;
 "5") gen_htpasswd ;;
 "6") replace_tags ;;
+"7") sqlite_download;;
+"8") wp_config;;
 "X") exit ;;
 "x") exit ;;
 *) start
@@ -33,19 +37,20 @@ start
 }
 
 fix_perm() {
-chown -R www-data:www-data ./
-find . -type d -exec chmod 755 {} \; 
-find . -type f -exec chmod 644 {} \;
+sudo chmod 777 -R ./
 }
 
 update_wp() {
 echo -e "\e[92mUpdating to latest Wordpress version"
 echo -e "\e[94m-------------------------------------------"
+read -p "Download themes? [y/N]: " themes
 echo 'Downloading latest Wordpress…'
 wget -q --show-progress http://wordpress.org/latest.zip
 echo 'Unpacking files…'
 unzip -q ./latest.zip
+if [ $themes != "y" ]; then
 rm -R ./wordpress/wp-content/themes
+fi
 echo 'Updating files…'
 cp -R ./wordpress/* ./
 echo 'Cleaning up…'
@@ -127,9 +132,33 @@ Require valid-user" > wp-admin/.htaccess
 }
 
 replace_tags() {
-echo "Fixing tags in files..."
+echo -e "\e[92mFix tags in files"
+echo -e "\e[94m-------------------------------------------"
 find *.js -type f -name '*.js' -exec sed -i -e 's/[a-z]\.type="text\/javascript",//g' {} +
 find ./ -type f \( -name "*.js" -o -name "*.php" \) -exec sed -i -e 's/type=["'\'']text\/javascript["'\'']//g' {} +
+}
+
+sqlite_download() {
+echo -e "\e[92mDownloading SQLite plugin"
+echo -e "\e[94m-------------------------------------------"
+wget -P ./wp-content https://github.com/aaemnnosttv/wp-sqlite-db/raw/master/src/db.php
+}
+
+wp_config() {
+echo -e "\e[92mSet wp-config.php to use SQLite"
+echo -e "\e[94m-------------------------------------------"
+mv ./wp-config.php ./wp-config.old.php
+echo "
+define('WP_DEBUG', true);
+define('DB_TYPE', 'sqlite');
+define('DB_COLLATE', '');
+define('WP_DEFAULT_THEME','ordipress');
+$table_prefix  = 'wp_';
+if (!defined('ABSPATH'))
+define('ABSPATH', dirname(__FILE__) . '/');
+require_once(ABSPATH . 'wp-settings.php');
+define('FS_METHOD','direct');" > ./wp-config.php
+generate_salt
 }
 
 finished() {
